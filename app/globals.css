@@ -13,10 +13,10 @@ body {
 
 @layer components {
   .btn-primary {
-    @apply bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-colors duration-200;
+    @apply bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg;
   }
   
   .feature-card {
-    @apply bg-white rounded-2xl shadow-lg p-8 flex items-center gap-4 transition-transform hover:scale-105;
+    @apply bg-white rounded-2xl shadow-lg p-8 flex items-center gap-4 transition-transform hover:scale-105 cursor-pointer;
   }
 }
