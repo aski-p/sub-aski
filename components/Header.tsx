@@ -47,10 +47,14 @@ export default function Header() {
           
           {/* Nav links */}
           <nav className="hidden md:flex items-center gap-1">
-            {["홈", "이미지", "랭킹"].map(item => (
-              <Link key={item} href={item === "홈" ? "/" : `/${item === "이미지" ? "images" : "ranks"}`}
+            {[
+              { label: "홈", path: "/" },
+              { label: "이미지", path: "/images" },
+              { label: "에이전트", path: "/agents" },
+            ].map(item => (
+              <Link key={item.label} href={item.path as string}
                 className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-purple-600 rounded-lg hover:bg-purple-50 transition-colors">
-                {item}
+                {item.label}
               </Link>
             ))}
           </nav>
