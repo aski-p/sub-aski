@@ -102,6 +102,8 @@ export interface Task {
 export interface ChatMessage {
   role: "user" | "assistant" | "system"
   content: string
+  timestamp?: string
+  task_id?: string | null
 }
 
 export const DEFAULT_AVATAR_PHOTOS = [
