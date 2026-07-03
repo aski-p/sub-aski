@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const userId = url.searchParams.get("user_id")
 
-    let query = `${SPA}/sub_agents?select=*,roles(id,name,icon,color,description)`
+    let query = `${SPA}/sub_agents?select=*,roles(id,name,icon,description)`
     if (userId) {
       query += `&user_id=eq.${userId}`
     } else {

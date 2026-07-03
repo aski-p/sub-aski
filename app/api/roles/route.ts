@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const res = await fetch(`${SPA}/roles`, {
       method: "POST",
       headers: headersObj(),
-      body: JSON.stringify({ name: body.name, description: body.description || null, icon: body.icon || "🤖", color: body.color || "#8b5cf6" }),
+      body: JSON.stringify({ name: body.name, description: body.description || null, icon: body.icon || "🤖" }),
     })
     if (!res.ok) return NextResponse.json({ error: "저장 실패" }, { status: 502 })
     const data = await res.json()
