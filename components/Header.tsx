@@ -48,8 +48,6 @@ export default function Header() {
           {/* Nav links */}
           <nav className="hidden md:flex items-center gap-1">
             {[
-              { label: "홈", path: "/" },
-              { label: "이미지", path: "/images" },
               { label: "에이전트", path: "/agents" },
             ].map(item => (
               <Link key={item.label} href={item.path as string}
@@ -74,9 +72,9 @@ export default function Header() {
                 </button>
               </>
             ) : (
-              <Link href="/login"
+              <Link href="/agents/register"
                 className="bg-purple-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-purple-700 transition-colors shadow-md hover:shadow-lg">
-                시작하기 🚀
+                에이전트 등록
               </Link>
             )}
           </div>

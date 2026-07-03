@@ -14,7 +14,7 @@ export default function LoginPage() {
   // Already logged in → redirect home
   useEffect(() => {
     try {
-      const session = localStorage.getItem("civitai_session")
+      const session = localStorage.getItem("subaski_session")
       if (session) {
         router.push("/")
       }
@@ -30,7 +30,7 @@ export default function LoginPage() {
       // Local auth: aski / 1234
       if (id === "aski" && password === "1234") {
         // Store session locally
-        localStorage.setItem("civitai_session", JSON.stringify({
+        localStorage.setItem("subaski_session", JSON.stringify({
           id: "aski",
           nickname: "aski",
           loginAt: new Date().toISOString(),
@@ -39,13 +39,13 @@ export default function LoginPage() {
         // Also try Supabase email auth for profile sync
         try {
           const { error } = await supabase.auth.signInWithPassword({
-            email: "aski@civitai.local",
+            email: "aski@subaski.local",
             password: "1234",
           })
           if (error) {
             // User doesn't exist in Supabase yet - create them
             const { data, error: signupErr } = await supabase.auth.signUp({
-              email: "aski@civitai.local",
+              email: "aski@subaski.local",
               password: "1234",
               options: {
                 data: { nickname: "aski" },
@@ -73,7 +73,7 @@ export default function LoginPage() {
       })
 
       if (!supaError) {
-        localStorage.setItem("civitai_session", JSON.stringify({
+        localStorage.setItem("subaski_session", JSON.stringify({
           id: "supabase_user",
           nickname: id,
           loginAt: new Date().toISOString(),
