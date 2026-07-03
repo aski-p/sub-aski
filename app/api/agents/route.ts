@@ -27,7 +27,10 @@ export async function GET(request: NextRequest) {
 
     const res = await fetch(query, { headers: headers(false) })
 
-    if (!res.ok) return NextResponse.json({ error: "Supabase 오류" }, { status: 502 })
+    if (!res.ok) {
+      const txt = await res.text()
+      return NextResponse.json({ error: `Supabase 오류 ${res.status}: ${txt.slice(0,200)}` }, { status: 502 })
+    }
 
     const agents = await res.json()
     return NextResponse.json(agents)
