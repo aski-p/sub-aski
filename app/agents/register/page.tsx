@@ -60,10 +60,21 @@ export default function RegisterAgentPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      // Supabase 세션 또는 로컬 세션 확인
+      let session = null
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession()
+        session = s
+      } catch {}
+
       if (!session) {
-        alert("로그인이 필요합니다")
-        return router.push("/login")
+        // 로컬 세션 fallback
+        const local = localStorage.getItem("subaski_session")
+        if (!local) {
+          alert("로그인이 필요합니다")
+          return router.push("/login")
+        }
+        session = { user: { id: JSON.parse(local).id } }
       }
 
       const res = await fetch("/api/agents", {

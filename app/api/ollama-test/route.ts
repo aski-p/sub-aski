@@ -1,11 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server"
 
-const OLLAMA_BASE = process.env.OLLAMA_BASE || 'http://localhost:11434'
+const OLLAMA_BASE = process.env.OLLAMA_BASE || "http://localhost:11434"
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
 export async function POST(request: Request) {
   try {
+    const isLocal = OLLAMA_BASE.includes("localhost") || OLLAMA_BASE.includes("127.0.0.1")
+    if (isLocal && process.env.VERCEL) {
+      return NextResponse.json({ content: "프로덕션 환경에서는 로컬 Ollama 테스트를 실행할 수 없습니다." })
+    }
+
     const { model, name, message } = await request.json()
 
     if (!model || !name) {
