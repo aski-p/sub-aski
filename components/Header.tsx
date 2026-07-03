@@ -41,7 +41,7 @@ export default function Header() {
               K
             </div>
             <span className="text-xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
-              크리에이타이
+              subaski
             </span>
           </Link>
           

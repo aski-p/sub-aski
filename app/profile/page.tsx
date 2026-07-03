@@ -79,7 +79,7 @@ export default function ProfilePage() {
               {/* Info */}
               <div className="flex-1 pt-4 sm:pt-20">
                 <h1 className="text-2xl font-extrabold text-slate-900 mb-1">{nickname || "사용자"}</h1>
-                <p className="text-sm text-slate-500 mb-4">크리에이타й 크리에이터</p>
+                <p className="text-sm text-slate-500 mb-4">AI 에이전트 관리자</p>
                 
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-slate-50 rounded-xl p-3 text-center">
