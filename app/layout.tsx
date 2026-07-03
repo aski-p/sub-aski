@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "크리에이타이 | 한국형 AI 창작 플랫폼",
-  description: "AI 이미지를 만들고 공유하는 커뮤니티",
+  title: "서브에이전트 | 한국형 AI 에이전트 제어실",
+  description: "AI 에이전트를 효율적으로 제어하고 관리하는 플랫폼",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
