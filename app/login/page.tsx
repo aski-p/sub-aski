@@ -29,38 +29,37 @@ export default function LoginPage() {
     try {
       // Local auth: aski / 1234
       if (id === "aski" && password === "1234") {
-        // Store session locally
-        localStorage.setItem("subaski_session", JSON.stringify({
-          id: "aski",
-          nickname: "aski",
-          loginAt: new Date().toISOString(),
-        }))
-
-        // Also try Supabase email auth for profile sync
+        let userId = "local-aski"
+        // Ensure a real Supabase UUID exists for this account
         try {
-          const { error } = await supabase.auth.signInWithPassword({
+          const { data: sessionData } = await supabase.auth.signInWithPassword({
             email: "aski@subaski.local",
             password: "1234",
           })
-          if (error) {
-            // User doesn't exist in Supabase yet - create them
-            const { data, error: signupErr } = await supabase.auth.signUp({
-              email: "aski@subaski.local",
-              password: "1234",
-              options: {
-                data: { nickname: "aski" },
-              },
-            })
-            if (!signupErr && data?.user) {
-              // Create profile
-              await supabase.from("profiles").upsert({
-                id: data.user.id,
-                nickname: "aski",
-                points: 0,
-              })
-            }
+          if (sessionData?.user?.id) {
+            userId = sessionData.user.id
           }
         } catch {}
+
+        if (userId === "local-aski") {
+          try {
+            const { data: signupData } = await supabase.auth.signUp({
+              email: "aski@subaski.local",
+              password: "1234",
+              options: { data: { nickname: "aski" } },
+            })
+            if (signupData?.user?.id) userId = signupData.user.id
+          } catch {}
+        }
+
+        localStorage.setItem(
+          "subaski_session",
+          JSON.stringify({
+            id: userId,
+            nickname: "aski",
+            loginAt: new Date().toISOString(),
+          })
+        )
 
         router.push("/")
         return

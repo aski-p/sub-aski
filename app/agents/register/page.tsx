@@ -18,14 +18,18 @@ export default function RegisterAgentPage() {
   const [loading, setLoading] = useState(false)
   const [ollamaTest, setOllamaTest] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
-
-  // Profile images for picker
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
   const [images, setImages] = useState<ImgItem[]>([])
   const [imgLoading, setImgLoading] = useState(true)
   const [selectedPreviewUrl, setSelectedPreviewUrl] = useState<string>("")
+  const [isRoleOpen, setIsRoleOpen] = useState(false)
 
   useEffect(() => {
-    fetch("/api/roles").then(r => r.json()).then(setRoles).catch(console.error)
+    fetch("/api/roles")
+      .then(r => r.ok ? r.json() : [])
+      .then(setRoles)
+      .catch(() => {})
     fetch("/api/profile-images")
       .then(r => r.json())
       .then(data => {
@@ -35,10 +39,10 @@ export default function RegisterAgentPage() {
       .catch(() => setImgLoading(false))
   }, [])
 
-  // Ollama 연결 테스트
   const testOllama = async () => {
     if (!name) return
     setTesting(true)
+    setOllamaTest(null)
     try {
       const res = await fetch("/api/ollama-test", {
         method: "POST",
@@ -55,12 +59,12 @@ export default function RegisterAgentPage() {
     }
   }
 
-  // 에이전트 등록
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setSubmitError(null)
+    setSubmitSuccess(null)
     try {
-      // Supabase 세션 또는 로컬 세션 확인
       let session = null
       try {
         const { data: { session: s } } = await supabase.auth.getSession()
@@ -68,13 +72,13 @@ export default function RegisterAgentPage() {
       } catch {}
 
       if (!session) {
-        // 로컬 세션 fallback
         const local = localStorage.getItem("subaski_session")
         if (!local) {
-          alert("로그인이 필요합니다")
+          setSubmitError("로그인이 필요합니다")
           return router.push("/login")
         }
-        session = { user: { id: JSON.parse(local).id } }
+        const parsed = JSON.parse(local)
+        session = { user: { id: parsed.id } }
       }
 
       const res = await fetch("/api/agents", {
@@ -89,174 +93,244 @@ export default function RegisterAgentPage() {
         }),
       })
 
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || "등록 실패")
+        const errMsg = data?.error || `등록 실패 (HTTP ${res.status})`
+        setSubmitError(errMsg)
+        return
       }
 
-      const agent = await res.json()
-      await new Promise(resolve => setTimeout(resolve, 500))
-      router.push(`/agents/chat/${agent.id}`)
+      setSubmitSuccess("에이전트가 등록되었습니다! 채팅 페이지로 이동합니다...")
+      await new Promise(resolve => setTimeout(resolve, 600))
+      router.push(`/agents/chat/${data.id}`)
     } catch (err: any) {
-      alert(`에이전트 등록 실패: ${err.message}`)
+      setSubmitError(`에이전트 등록 실패: ${err.message}`)
     } finally {
       setLoading(false)
     }
   }
 
+  const selectedRole = roles.find(r => r.id === roleId)
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950">
+    <div className="min-h-screen bg-[#030712] text-white">
       <Header />
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* Back link */}
-        <Link href="/agents" className="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-medium mb-6 transition-colors">
-          <span>←</span> 에이전트 목록으로 돌아가기
-        </Link>
-
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            🤖 새 에이전트 등록
+      {/* Hero header */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-indigo-500/20 rounded-full blur-[120px]" />
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
+          <Link href="/agents" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-indigo-400 transition-colors mb-6">
+            <span className="text-base">←</span> 에이전트 목록으로 돌아가기
+          </Link>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-2">
+            <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              새 에이전트 등록
+            </span>
           </h1>
-          <p className="text-slate-400 mt-2">에이전트의 이름, 역할, 아바타를 설정하세요</p>
+          <p className="text-slate-400 text-lg">이름, 역할, 아바타를 설정하고 AI 에이전트를 활성화하세요</p>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Status messages */}
+        {submitError && (
+          <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-start gap-3 backdrop-blur-sm">
+            <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-lg">⚠️</span>
+            </div>
+            <div>
+              <p className="font-bold text-sm mb-0.5">등록 실패</p>
+              <p className="text-sm opacity-90 leading-relaxed">{submitError}</p>
+            </div>
+          </div>
+        )}
+        {submitSuccess && (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-start gap-3 backdrop-blur-sm">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-lg">✅</span>
+            </div>
+            <div>
+              <p className="font-bold text-sm mb-0.5">등록 완료</p>
+              <p className="text-sm opacity-90 leading-relaxed">{submitSuccess}</p>
+            </div>
+          </div>
+        )}
 
-          {/* Basic Info Card */}
-          <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/80 backdrop-blur-sm overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-            <div className="p-6 space-y-5">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-sm">①</span>
-                기본 정보
-              </h3>
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left column: form inputs */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Basic Info Card */}
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-900/90 to-slate-900/60 backdrop-blur-xl overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+              <div className="p-6 md:p-8 space-y-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-sm font-bold text-indigo-400">①</div>
+                  <h3 className="font-bold text-lg text-white">기본 정보</h3>
+                </div>
 
-              {/* Name */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">이름 *</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} required
-                  maxLength={50} placeholder="예: 요한나, 김채원..."
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-transparent transition-all" />
-              </div>
+                <div className="space-y-5">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">에이전트 이름 *</label>
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} required
+                      maxLength={50} placeholder="예: 요한나, 김채원..."
+                      className="w-full px-5 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all text-[15px]" />
+                  </div>
 
-              {/* Ollama test */}
-              {name && (
-                <div className="flex flex-col gap-3">
-                  <button type="button" onClick={testOllama} disabled={testing}
-                    className={`self-start px-4 py-2 rounded-lg font-bold text-sm transition-all ${testing ? "bg-indigo-500/30 text-indigo-300" : ollamaTest ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"}`}>
-                    {testing ? "🔄 테스트 중..." : ollamaTest && !ollamaTest.startsWith("❌") ? "✅ 연결 확인됨!" : "🧪 Ollama 연결 테스트"}
-                  </button>
-                  {ollamaTest && (
-                    <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                      <div className="flex items-start gap-3">
-                        <span role="img" aria-label="에이전트">🤖</span>
-                        <div>
-                          <p className="text-sm font-bold text-indigo-400 mb-1">{name}:</p>
-                          <p className="text-sm text-slate-300">{ollamaTest}</p>
+                  {/* Ollama test */}
+                  {name && (
+                    <div className="space-y-3">
+                      <button type="button" onClick={testOllama} disabled={testing}
+                        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                          testing ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" :
+                          ollamaTest && !ollamaTest.startsWith("❌") ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" :
+                          "bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60"
+                        }`}>
+                        {testing ? "🔄 테스트 중..." : ollamaTest && !ollamaTest.startsWith("❌") ? "✅ 연결 확인됨" : "🧪 Ollama 연결 테스트"}
+                      </button>
+                      {ollamaTest && (
+                        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex items-start gap-3">
+                          <span className="text-xl">🤖</span>
+                          <div>
+                            <p className="text-sm font-bold text-indigo-400 mb-1">{name}:</p>
+                            <p className="text-sm text-slate-300 leading-relaxed">{ollamaTest}</p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
+
+                  {/* Role select */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">역할</label>
+                    <div className="relative">
+                      <button type="button" onClick={() => setIsRoleOpen(!isRoleOpen)}
+                        className="w-full px-5 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl text-left text-white flex items-center justify-between hover:border-slate-600 transition-all">
+                        <span className={roleId ? "text-white" : "text-slate-500"}>
+                          {selectedRole ? `${selectedRole.icon} ${selectedRole.name}` : "직접 선택"}
+                        </span>
+                        <span className="text-slate-400 transition-transform duration-200" style={{ transform: isRoleOpen ? "rotate(180deg)" : "rotate(0deg)" }}>⌄</span>
+                      </button>
+                      {isRoleOpen && (
+                        <div className="absolute z-20 w-full mt-2 bg-slate-800/95 backdrop-blur-xl border border-slate-700/60 rounded-2xl overflow-hidden shadow-2xl">
+                          {roles.length === 0 ? (
+                            <div className="px-5 py-4 text-sm text-slate-500">역할을 불러오는 중...</div>
+                          ) : (
+                            roles.map(r => (
+                              <button key={r.id} type="button" onClick={() => { setRoleId(r.id); setIsRoleOpen(false) }}
+                                className={`w-full px-5 py-3 text-left text-sm hover:bg-slate-700/60 transition-colors flex items-center gap-3 ${
+                                  roleId === r.id ? "bg-indigo-500/10 text-indigo-400" : "text-slate-300"
+                                }`}>
+                                <span className="text-lg">{r.icon}</span>
+                                <div>
+                                  <div className="font-medium">{r.name}</div>
+                                  {r.description && <div className="text-xs text-slate-500 mt-0.5">{r.description}</div>}
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">설명</label>
+                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
+                      placeholder="이 에이전트의 주요 역할과 특기를 적어보세요..."
+                      className="w-full px-5 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all resize-none text-[15px] leading-relaxed" />
+                  </div>
+
+                  {/* Avatar URL */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">아바타 URL</label>
+                    <input type="url" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-5 py-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all text-[15px]" />
+                  </div>
                 </div>
-              )}
-
-              {/* Role select */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">역할</label>
-                <select value={roleId} onChange={(e) => setRoleId(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-transparent transition-all appearance-none">
-                  <option value="">직접 선택</option>
-                  {roles.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">설명</label>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
-                  placeholder="이 에이전트의 주요 역할과 특기를 적어보세요..."
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-transparent transition-all resize-none" />
-              </div>
-
-              {/* Avatar url */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">아바타 URL</label>
-                <input type="url" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)}
-                  placeholder="URL 입력 또는 아래 이미지 선택..."
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-transparent transition-all" />
               </div>
             </div>
           </div>
 
-          {/* Profile Image Picker */}
-          <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/80 backdrop-blur-sm overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500" />
-            <div className="p-6 space-y-4">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-sm">②</span>
-                프로필 이미지 선택
-              </h3>
-
-              {imgLoading && (
-                <div className="text-center py-8 bg-slate-800/30 rounded-xl animate-pulse border border-slate-700/30">
-                  이미지 로딩 중...
+          {/* Right column: image picker */}
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-900/90 to-slate-900/60 backdrop-blur-xl overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500" />
+              <div className="p-6 md:p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-sm font-bold text-purple-400">②</div>
+                  <h3 className="font-bold text-lg text-white">프로필 이미지</h3>
                 </div>
-              )}
 
-              {!imgLoading && images.length === 0 && (
-                <p className="text-amber-400 text-sm bg-amber-500/10 p-4 rounded-xl border border-amber-500/20">
-                  프로필 이미지가 없습니다. ComfyUI에서 이미지를 생성해주세요.
-                </p>
-              )}
-
-              {!imgLoading && images.length > 0 && (
-                <>
-                  {/* Selected Preview */}
-                  {selectedPreviewUrl && (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="relative group">
-                        <img src={selectedPreviewUrl} alt="선택된 미리보기"
-                          className="w-32 h-40 object-cover rounded-xl border-2 border-indigo-500 shadow-lg shadow-indigo-500/25 transition-all" />
-                        <div className="absolute -top-1 -right-1 bg-emerald-500 text-white w-6 h-6 flex items-center justify-center rounded-full font-bold text-xs shadow-lg">✓</div>
-                      </div>
-                      <span className="text-xs text-indigo-400 font-medium">선택됨</span>
+                {selectedPreviewUrl && (
+                  <div className="flex flex-col items-center gap-3 mb-6">
+                    <div className="relative group">
+                      <img src={selectedPreviewUrl} alt="프로필 이미지"
+                        className="w-28 h-36 object-cover rounded-2xl border-2 border-indigo-500/50 shadow-lg shadow-indigo-500/20" />
+                      <button type="button" onClick={() => { setSelectedPreviewUrl(""); setAvatarUrl("") }}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                        ✕
+                      </button>
                     </div>
-                  )}
+                    <span className="text-xs text-indigo-400 font-medium px-3 py-1 bg-indigo-500/10 rounded-full">선택됨</span>
+                  </div>
+                )}
 
-                  {/* Image Grid */}
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[400px] overflow-y-auto p-1 bg-slate-800/20 rounded-xl border border-slate-700/30">
+                {imgLoading ? (
+                  <div className="text-center py-10 bg-slate-800/30 rounded-2xl border border-slate-700/20 animate-pulse">
+                    <div className="w-8 h-8 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-sm text-slate-500">이미지 로딩 중...</p>
+                  </div>
+                ) : images.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-800/20 rounded-2xl border border-slate-700/20">
+                    <div className="text-4xl mb-3 opacity-50">🖼️</div>
+                    <p className="text-sm text-slate-500 leading-relaxed">프로필 이미지가 없습니다.<br/>ComfyUI에서 이미지를 생성해주세요.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 max-h-[360px] overflow-y-auto p-1 bg-slate-800/20 rounded-2xl border border-slate-700/20">
                     {images.map(img => (
-                      <div key={img.id} onClick={() => {
+                      <button key={img.id} type="button" onClick={() => {
                         setSelectedPreviewUrl(img.url)
                         setAvatarUrl(img.filename.includes("prof_") ? img.url : `/nas/profiles/${img.filename}`)
                       }}
-                        className={`cursor-pointer group relative rounded-lg overflow-hidden transition-all ${selectedPreviewUrl === img.url ? "ring-2 ring-pink-400 scale-[1.02]" : "hover:scale-[1.02] hover:ring-1 hover:ring-indigo-400/50"}`}>
-                        <img src={img.url} alt={img.filename} className="w-full h-auto aspect-[3/4] object-cover rounded-lg" />
-                        {selectedPreviewUrl === img.url && (
-                          <div className="absolute inset-0 bg-pink-500/10 flex items-center justify-center">
-                            <div className="bg-pink-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">✓</div>
-                          </div>
-                        )}
-                      </div>
+                        className={`aspect-[3/4] rounded-xl overflow-hidden transition-all duration-200 ${
+                          selectedPreviewUrl === img.url
+                            ? "ring-2 ring-pink-400 scale-95 shadow-lg shadow-pink-500/20"
+                            : "hover:scale-[1.03] hover:ring-1 hover:ring-indigo-400/40"
+                        }`}>
+                        <img src={img.url} alt={img.filename} className="w-full h-full object-cover" loading="lazy" />
+                      </button>
                     ))}
                   </div>
+                )}
 
-                  <p className="text-xs text-slate-500">총 {images.length}개 프로필 이미지 — 클릭하면 선택됩니다 ✨</p>
-                </>
-              )}
+                {!imgLoading && images.length > 0 && (
+                  <p className="text-xs text-slate-500 mt-3 text-center">총 {images.length}개 이미지</p>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Submit */}
-          <button type="submit" disabled={loading || !name}
-            className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold rounded-xl px-8 py-4 hover:shadow-lg hover:shadow-purple-500/25 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
-            {loading ? "⏳ 등록 중..." : "✅ 에이전트 등록하기"}
-          </button>
-
+          {/* Full-width submit */}
+          <div className="lg:col-span-3 pb-8">
+            <button type="submit" disabled={loading || !name}
+              className="w-full py-5 rounded-2xl font-bold text-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.99]">
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  등록 중...
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <span>✨</span> 에이전트 등록하기
+                </span>
+              )}
+            </button>
+          </div>
         </form>
       </main>
     </div>
