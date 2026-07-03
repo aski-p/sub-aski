@@ -40,20 +40,14 @@ export default function RegisterAgentPage() {
     if (!name) return
     setTesting(true)
     try {
-      const res = await fetch("http://localhost:11434/api/chat", {
+      const res = await fetch("/api/ollama-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "qwen3.6:27b",
-          messages: [
-            { role: "system", content: `너는 "${name}"이라는 이름의 AI 에이전트다. 간단히 자기소개를 하세요.` },
-            { role: "user", content: "안녕! 뭐 할 거야?" },
-          ],
-          stream: false,
-        }),
+        body: JSON.stringify({ model: "qwen3.6:27b", name }),
       })
       const data = await res.json()
-      setOllamaTest(data.message?.content || "연결 성공!")
+      if (!res.ok) throw new Error(data.error || "응답 실패")
+      setOllamaTest(data.content || "연결 성공!")
     } catch (err: any) {
       setOllamaTest(`❌ 연결 실패: ${err.message}`)
     } finally {
